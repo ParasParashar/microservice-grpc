@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package auth;
+
+import "common/metadata.proto";
+
+service AuthService {
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  bool is_valid = 1;
+  common.UserContext user = 2;
+  string error_message = 3;
+}

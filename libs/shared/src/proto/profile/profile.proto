@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package profile;
+
+import "google/protobuf/timestamp.proto";
+import "common/metadata.proto";
+
+service ProfileService {
+  rpc GetProfile (GetProfileRequest) returns (ProfileResponse);
+  rpc UpdateProfile (UpdateProfileRequest) returns (ProfileResponse);
+}
+
+message GetProfileRequest {
+  string user_id = 1;
+}
+
+message UpdateProfileRequest {
+  string user_id = 1;
+  string full_name = 2;
+  string phone_number = 3;
+  string address = 4;
+}
+
+message ProfileResponse {
+  string id = 1;
+  string user_id = 2;
+  string full_name = 3;
+  string phone_number = 4;
+  string address = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}

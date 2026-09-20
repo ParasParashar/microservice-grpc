@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package common;
+
+message PaginationRequest {
+  int32 page = 1;
+  int32 limit = 2;
+  string sort_by = 3;
+  bool sort_descending = 4;
+}
+
+message PaginationResponse {
+  int32 total_items = 1;
+  int32 total_pages = 2;
+  int32 current_page = 3;
+  int32 limit = 4;
+  bool has_next_page = 5;
+}

@@ -12,7 +12,10 @@ import {
 } from '@nestjs/common';
 import { Client, type ClientGrpc, Transport } from '@nestjs/microservices';
 import { randomUUID } from 'crypto';
-import { join } from 'path';
+import {
+    AUTH_PROTO_PATH,
+    PROTO_INCLUDE_DIRS,
+} from '@auth-profile/shared';
 import { Observable, firstValueFrom } from 'rxjs';
 import { CircuitBreaker } from '../common/circuit-breaker';
 
@@ -35,7 +38,8 @@ export class AuthClient implements OnModuleInit {
         transport: Transport.GRPC,
         options: {
             package: 'auth',
-            protoPath: join(process.cwd(), '../../libs/shared/src/proto/auth.proto'),
+            protoPath: AUTH_PROTO_PATH,
+            loader: { includeDirs: PROTO_INCLUDE_DIRS },
             url: process.env.AUTH_SERVICE_GRPC_URL ?? 'localhost:5001',
         },
     })

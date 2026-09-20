@@ -5,6 +5,7 @@
     "scripts": {
         "auth": "pnpm --filter auth-service start:dev",
         "profile": "pnpm --filter profile-service start:dev",
-        "gateway": "pnpm --filter api-gateway-service start:dev"
+        "order": "pnpm --filter order-service start:dev",
+        "test:streaming": "ts-node scripts/test-grpc-streaming.ts"
     }
 }
