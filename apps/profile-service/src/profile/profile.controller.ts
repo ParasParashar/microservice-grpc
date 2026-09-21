@@ -13,6 +13,7 @@ export class ProfileController {
   constructor(private profileService: ProfileService) { }
 
   @Get()
+
   getProfile(@CurrentUser() user: GrpcAuthenticatedUser) {
     return this.profileService.getProfile(user.userId);
   }
@@ -26,14 +27,14 @@ export class ProfileController {
   }
 
   // make a grpc controller for the getProfile
-
-
   @GrpcPublic()
   @GrpcMethod('ProfileService', 'getProfile')
   async getProfileGrpc(data: { userId: string }) {
     const d = await this.profileService.getProfile(data.userId);
     return {
-      profile: d
+      ...d,
+      full_name: d.firstName + " " + d.lastName,
+      address: d.bio
     }
   }
 }

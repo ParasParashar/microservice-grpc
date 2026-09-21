@@ -1,11 +1,11 @@
 {
-  "id": "eda1c03f-7852-452d-85d1-968176266123",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "bcdc5a09-175a-4a19-a0a6-082d4a745427",
+  "prevId": "14b02336-4388-4f19-88fa-3fe7a15c4c4f",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.idempotency_keys": {
-      "name": "idempotency_keys",
+    "public.idempotencyKeys": {
+      "name": "idempotencyKeys",
       "schema": "",
       "columns": {
         "key": {
@@ -14,8 +14,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "order_id": {
-          "name": "order_id",
+        "orderId": {
+          "name": "orderId",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -53,8 +53,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "order_id": {
-          "name": "order_id",
+        "orderId": {
+          "name": "orderId",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -87,12 +87,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "order_events_order_id_orders_id_fk": {
-          "name": "order_events_order_id_orders_id_fk",
+        "order_events_orderId_orders_id_fk": {
+          "name": "order_events_orderId_orders_id_fk",
           "tableFrom": "order_events",
           "tableTo": "orders",
           "columnsFrom": [
-            "order_id"
+            "orderId"
           ],
           "columnsTo": [
             "id"
@@ -118,14 +118,14 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "order_id": {
-          "name": "order_id",
+        "orderId": {
+          "name": "orderId",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "product_id": {
-          "name": "product_id",
+        "productId": {
+          "name": "productId",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -142,8 +142,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "unit_price": {
-          "name": "unit_price",
+        "unitPrice": {
+          "name": "unitPrice",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true
@@ -158,12 +158,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "order_items_order_id_orders_id_fk": {
-          "name": "order_items_order_id_orders_id_fk",
+        "order_items_orderId_orders_id_fk": {
+          "name": "order_items_orderId_orders_id_fk",
           "tableFrom": "order_items",
           "tableTo": "orders",
           "columnsFrom": [
-            "order_id"
+            "orderId"
           ],
           "columnsTo": [
             "id"
@@ -189,8 +189,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "idempotency_key": {
-          "name": "idempotency_key",
+        "idempotencyKey": {
+          "name": "idempotencyKey",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -208,8 +208,8 @@
           "notNull": true,
           "default": "'USD'"
         },
-        "total_amount": {
-          "name": "total_amount",
+        "totalAmount": {
+          "name": "totalAmount",
           "type": "double precision",
           "primaryKey": false,
           "notNull": true,
@@ -229,8 +229,8 @@
           "notNull": true,
           "default": "'CREATED'"
         },
-        "shipping_address": {
-          "name": "shipping_address",
+        "shippingAddress": {
+          "name": "shippingAddress",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -266,11 +266,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "orders_idempotency_key_unique": {
-          "name": "orders_idempotency_key_unique",
+        "orders_idempotencyKey_unique": {
+          "name": "orders_idempotencyKey_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "idempotency_key"
+            "idempotencyKey"
           ]
         }
       },
@@ -289,14 +289,14 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "order_id": {
-          "name": "order_id",
+        "orderId": {
+          "name": "orderId",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
         },
-        "payment_method": {
-          "name": "payment_method",
+        "paymentMethod": {
+          "name": "paymentMethod",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -330,12 +330,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "payments_order_id_orders_id_fk": {
-          "name": "payments_order_id_orders_id_fk",
+        "payments_orderId_orders_id_fk": {
+          "name": "payments_orderId_orders_id_fk",
           "tableFrom": "payments",
           "tableTo": "orders",
           "columnsFrom": [
-            "order_id"
+            "orderId"
           ],
           "columnsTo": [
             "id"

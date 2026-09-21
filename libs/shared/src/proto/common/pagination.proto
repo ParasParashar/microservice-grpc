@@ -10,7 +10,7 @@ message PaginationRequest {
 }
 
 message PaginationResponse {
-  int32 total_items = 1;
+  int32 totalItems = 1;
   int32 total_pages = 2;
   int32 current_page = 3;
   int32 limit = 4;

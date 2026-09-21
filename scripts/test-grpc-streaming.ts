@@ -31,37 +31,37 @@ async function runClientStreamingTest(): Promise<string> {
         return reject(err);
       }
       console.log('>>> Server Response received:', JSON.stringify(response, null, 2));
-      resolve(response.order_id);
+      resolve(response.orderId);
     });
 
     console.log('-> Sending Chunk 1: Metadata');
     call.write({
-      idempotency_key: idempotencyKey,
-      metadata_chunk: { currency: 'USD', note: 'E2E Streaming Test Order', tags: { priority: 'HIGH' } },
+      idempotencyKey: idempotencyKey,
+      metadataChunk: { currency: 'USD', note: 'E2E Streaming Test Order', tags: { priority: 'HIGH' } },
     });
 
     console.log('-> Sending Chunk 2: Customer Info');
     call.write({
-      idempotency_key: idempotencyKey,
-      customer_chunk: { customer_id: 'cust-1001', shipping_address: '123 Tech Blvd', billing_address: '123 Tech Blvd' },
+      idempotencyKey: idempotencyKey,
+      customerChunk: { customerId: 'cust-1001', shippingAddress: '123 Tech Blvd', billingAddress: '123 Tech Blvd' },
     });
 
     console.log('-> Sending Chunk 3: Order Item #1');
     call.write({
-      idempotency_key: idempotencyKey,
-      item_chunk: { product_id: 'prod-macbook', sku: 'MBP-M3-16', quantity: 1, unit_price: 1999.99 },
+      idempotencyKey: idempotencyKey,
+      itemChunk: { productId: 'prod-macbook', sku: 'MBP-M3-16', quantity: 1, unitPrice: 1999.99 },
     });
 
     console.log('-> Sending Chunk 4: Order Item #2');
     call.write({
-      idempotency_key: idempotencyKey,
-      item_chunk: { product_id: 'prod-mouse', sku: 'MX-MASTER-3S', quantity: 2, unit_price: 99.99 },
+      idempotencyKey: idempotencyKey,
+      itemChunk: { productId: 'prod-mouse', sku: 'MX-MASTER-3S', quantity: 2, unitPrice: 99.99 },
     });
 
     console.log('-> Sending Chunk 5: Payment Info');
     call.write({
-      idempotency_key: idempotencyKey,
-      payment_chunk: { payment_method: 'CREDIT_CARD', transaction_token: 'tok_visa_streaming', amount: 2199.97 },
+      idempotencyKey: idempotencyKey,
+      paymentChunk: { paymentMethod: 'CREDIT_CARD', transactionToken: 'tok_visa_streaming', amount: 2199.97 },
     });
 
     console.log('-> Ending Client Stream...');
@@ -75,7 +75,7 @@ async function runServerStreamingTest(orderId: string): Promise<void> {
   console.log('======================================================');
 
   return new Promise((resolve, reject) => {
-    const call = client.GetOrderEventsStream({ order_id: orderId, include_historical: true });
+    const call = client.GetOrderEventsStream({ orderId: orderId, include_historical: true });
 
     call.on('data', (event: any) => {
       console.log('<<< Streamed Event Received:', JSON.stringify(event));
@@ -117,26 +117,26 @@ async function runBidirectionalStreamingTest(): Promise<void> {
     });
 
     console.log('-> Sending Cmd 1: CMD_START_SESSION');
-    call.write({ session_id: sessionId, command_type: 'CMD_START_SESSION' });
+    call.write({ sessionId: sessionId, command_type: 'CMD_START_SESSION' });
 
     setTimeout(() => {
       console.log('-> Sending Cmd 2: CMD_UPDATE_QUANTITY (qty = 4)');
-      call.write({ session_id: sessionId, command_type: 'CMD_UPDATE_QUANTITY', new_quantity: 4 });
+      call.write({ sessionId: sessionId, command_type: 'CMD_UPDATE_QUANTITY', new_quantity: 4 });
     }, 500);
 
     setTimeout(() => {
       console.log('-> Sending Cmd 3: CMD_APPLY_COUPON (coupon = SAVE20)');
-      call.write({ session_id: sessionId, command_type: 'CMD_APPLY_COUPON', coupon_code: 'SAVE20' });
+      call.write({ sessionId: sessionId, command_type: 'CMD_APPLY_COUPON', coupon_code: 'SAVE20' });
     }, 1000);
 
     setTimeout(() => {
       console.log('-> Sending Cmd 4: CMD_CONFIRM_PAYMENT');
-      call.write({ session_id: sessionId, command_type: 'CMD_CONFIRM_PAYMENT' });
+      call.write({ sessionId: sessionId, command_type: 'CMD_CONFIRM_PAYMENT' });
     }, 1500);
 
     setTimeout(() => {
       console.log('-> Sending Cmd 5: CMD_CANCEL_ORDER & Ending Stream');
-      call.write({ session_id: sessionId, command_type: 'CMD_CANCEL_ORDER' });
+      call.write({ sessionId: sessionId, command_type: 'CMD_CANCEL_ORDER' });
       call.end();
     }, 2000);
   });

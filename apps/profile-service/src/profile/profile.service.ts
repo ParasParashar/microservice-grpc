@@ -7,6 +7,7 @@ import { Profile } from 'src/db/schema';
 @Injectable()
 export class ProfileService {
     async getProfile(userId: string) {
+        if (!userId) throw new Error('userId is required');
         const [profile] = await db
             .select()
             .from(Profile)

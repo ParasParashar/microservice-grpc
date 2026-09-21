@@ -1,11 +1,11 @@
 {
-  "id": "eda1c03f-7852-452d-85d1-968176266123",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "6103aabc-cd17-4af9-90a6-f7a2fa2a2fda",
+  "prevId": "eda1c03f-7852-452d-85d1-968176266123",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.idempotency_keys": {
-      "name": "idempotency_keys",
+    "public.idempotencyKeys": {
+      "name": "idempotencyKeys",
       "schema": "",
       "columns": {
         "key": {
@@ -189,8 +189,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "idempotency_key": {
-          "name": "idempotency_key",
+        "idempotencyKey": {
+          "name": "idempotencyKey",
           "type": "text",
           "primaryKey": false,
           "notNull": false
@@ -266,11 +266,11 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
-        "orders_idempotency_key_unique": {
-          "name": "orders_idempotency_key_unique",
+        "orders_idempotencyKey_unique": {
+          "name": "orders_idempotencyKey_unique",
           "nullsNotDistinct": false,
           "columns": [
-            "idempotency_key"
+            "idempotencyKey"
           ]
         }
       },

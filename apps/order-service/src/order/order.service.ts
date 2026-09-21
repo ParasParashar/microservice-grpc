@@ -1,8 +1,14 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { db } from '../db';
-import { orders, orderItems, orderEvents, payments, idempotencyKeys } from '../db/schema';
+import {
+  orders,
+  orderItems,
+  orderEvents,
+  payments,
+  idempotencyKeys,
+} from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { Observable, Subject } from 'rxjs';
+import { Observable } from 'rxjs';
 
 export interface CreateOrderAggregatedData {
   idempotencyKey: string;
@@ -34,13 +40,20 @@ export class OrderService {
   private readonly logger = new Logger(OrderService.name);
 
   async processClientStreamCreateOrder(data: CreateOrderAggregatedData) {
+    console.log(data, 'of the order')
     const { idempotencyKey, metadata, customer, items, payment } = data;
+
+    this.logger.debug(
+      `Processing client stream order. Key=${idempotencyKey}, items=${items.length}`,
+    );
 
     if (!idempotencyKey) {
       throw new BadRequestException('Missing idempotency key in stream');
     }
 
+    // ─────────────────────────────────────────────
     // 1. Idempotency Check
+    // ─────────────────────────────────────────────
     const existingKey = await db
       .select()
       .from(idempotencyKeys)
@@ -53,18 +66,27 @@ export class OrderService {
     }
 
     if (!customer?.customerId) {
-      throw new BadRequestException('Missing customer information in order stream');
+      throw new BadRequestException(
+        'Missing customer information in order stream',
+      );
     }
 
     if (!items || items.length === 0) {
       throw new BadRequestException('Order must contain at least one item');
     }
 
+    // ─────────────────────────────────────────────
     // 2. Compute Totals
-    const totalAmount = items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+    // ─────────────────────────────────────────────
+    const totalAmount = items.reduce(
+      (sum, item) => sum + item.unitPrice * item.quantity,
+      0,
+    );
     const totalItemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
-    // 3. PostgreSQL Database Transaction
+    // ─────────────────────────────────────────────
+    // 3. Transaction: Persist Order + Items + Payment + Event + Idempotency
+    // ─────────────────────────────────────────────
     const result = await db.transaction(async (tx) => {
       const [newOrder] = await tx
         .insert(orders)
@@ -75,9 +97,9 @@ export class OrderService {
           totalAmount,
           totalItems: totalItemsCount,
           status: 'CREATED',
-          shippingAddress: customer.shippingAddress,
-          billingAddress: customer.billingAddress,
-          note: metadata?.note,
+          shippingAddress: customer.shippingAddress ?? null,
+          billingAddress: customer.billingAddress ?? null,
+          note: metadata?.note ?? null,
         })
         .returning();
 
@@ -104,19 +126,23 @@ export class OrderService {
         orderId: newOrder.id,
         eventType: 'ORDER_EVENT_CREATED',
         description: `Order ${newOrder.id} created via gRPC Client Streaming`,
-        metadata: { currency: newOrder.currency, totalAmount: String(totalAmount) },
+        metadata: {
+          currency: newOrder.currency,
+          totalAmount: String(totalAmount),
+        },
       });
 
+      // Response payload — camelCase so gRPC (keepCase:false) serializes correctly
       const responsePayload = {
-        order_id: newOrder.id,
+        orderId: newOrder.id,
         status: newOrder.status,
-        total_amount: newOrder.totalAmount,
-        total_items: newOrder.totalItems,
-        created_at: {
+        totalAmount: newOrder.totalAmount,
+        totalItems: newOrder.totalItems,
+        createdAt: {
           seconds: Math.floor(newOrder.createdAt.getTime() / 1000),
-          nanos: (newOrder.createdAt.getTime() % 1000) * 1000000,
+          nanos: (newOrder.createdAt.getTime() % 1000) * 1_000_000,
         },
-        idempotency_key: idempotencyKey,
+        idempotencyKey,
       };
 
       await tx.insert(idempotencyKeys).values({
@@ -128,11 +154,19 @@ export class OrderService {
       return responsePayload;
     });
 
-    this.logger.log(`Successfully persisted order ${result.order_id} from client stream`);
+    this.logger.log(
+      `✅ Successfully persisted order ${result.orderId} from client stream`,
+    );
     return result;
   }
 
-  getOrderEventsStream(orderId: string, includeHistorical = true): Observable<any> {
+  // ─────────────────────────────────────────────
+  // Server Streaming: Order Events
+  // ─────────────────────────────────────────────
+  getOrderEventsStream(
+    orderId: string,
+    includeHistorical = true,
+  ): Observable<any> {
     return new Observable((subscriber) => {
       let isCancelled = false;
 
@@ -146,13 +180,13 @@ export class OrderService {
           for (const evt of historical) {
             if (isCancelled) return;
             subscriber.next({
-              event_id: evt.id,
-              order_id: evt.orderId,
-              event_type: evt.eventType,
+              eventId: evt.id,
+              orderId: evt.orderId,
+              eventType: evt.eventType,
               description: evt.description,
               timestamp: {
                 seconds: Math.floor(evt.createdAt.getTime() / 1000),
-                nanos: (evt.createdAt.getTime() % 1000) * 1000000,
+                nanos: (evt.createdAt.getTime() % 1000) * 1_000_000,
               },
               metadata: evt.metadata as Record<string, string>,
             });
@@ -160,12 +194,30 @@ export class OrderService {
         }
 
         const liveEvents = [
-          { type: 'ORDER_EVENT_PAYMENT_PENDING', desc: 'Payment confirmation pending with gateway' },
-          { type: 'ORDER_EVENT_PAYMENT_CONFIRMED', desc: 'Payment confirmed successfully' },
-          { type: 'ORDER_EVENT_PROCESSING', desc: 'Order sent to fulfillment warehouse' },
-          { type: 'ORDER_EVENT_PACKED', desc: 'Items packed in shipping container' },
-          { type: 'ORDER_EVENT_SHIPPED', desc: 'Handed over to carrier logistics' },
-          { type: 'ORDER_EVENT_DELIVERED', desc: 'Order delivered to destination' },
+          {
+            type: 'ORDER_EVENT_PAYMENT_PENDING',
+            desc: 'Payment confirmation pending with gateway',
+          },
+          {
+            type: 'ORDER_EVENT_PAYMENT_CONFIRMED',
+            desc: 'Payment confirmed successfully',
+          },
+          {
+            type: 'ORDER_EVENT_PROCESSING',
+            desc: 'Order sent to fulfillment warehouse',
+          },
+          {
+            type: 'ORDER_EVENT_PACKED',
+            desc: 'Items packed in shipping container',
+          },
+          {
+            type: 'ORDER_EVENT_SHIPPED',
+            desc: 'Handed over to carrier logistics',
+          },
+          {
+            type: 'ORDER_EVENT_DELIVERED',
+            desc: 'Order delivered to destination',
+          },
         ];
 
         for (let i = 0; i < liveEvents.length; i++) {
@@ -186,13 +238,13 @@ export class OrderService {
             .returning();
 
           subscriber.next({
-            event_id: inserted.id,
-            order_id: inserted.orderId,
-            event_type: inserted.eventType,
+            eventId: inserted.id,
+            orderId: inserted.orderId,
+            eventType: inserted.eventType,
             description: inserted.description,
             timestamp: {
               seconds: Math.floor(inserted.createdAt.getTime() / 1000),
-              nanos: (inserted.createdAt.getTime() % 1000) * 1000000,
+              nanos: (inserted.createdAt.getTime() % 1000) * 1_000_000,
             },
             metadata: inserted.metadata as Record<string, string>,
           });
@@ -204,147 +256,147 @@ export class OrderService {
       runStream().catch((err) => subscriber.error(err));
 
       return () => {
-        this.logger.log(`Client cancelled GetOrderEventsStream subscription for order ${orderId}`);
+        this.logger.log(
+          `Client cancelled GetOrderEventsStream for order ${orderId}`,
+        );
         isCancelled = true;
       };
     });
   }
 
-  handleBidirectionalSession(messages$: Observable<any>): Observable<any> {
-    const subject = new Subject<any>();
+  // ─────────────────────────────────────────────
+  // Bidirectional Streaming: Raw handler
+  // ─────────────────────────────────────────────
+  handleBidirectionalSessionRaw(call: any): void {
     let sessionId = '';
     let currentTotal = 100.0;
     let discountApplied = 0.0;
 
-    messages$.subscribe({
-      next: (cmd) => {
-        this.logger.log(`Received session command: ${JSON.stringify(cmd)}`);
-        sessionId = cmd.session_id || sessionId;
+    const emit = (event: any) => {
+      const timestamp = {
+        seconds: Math.floor(Date.now() / 1000),
+        nanos: (Date.now() % 1000) * 1_000_000,
+      };
+      call.write({ ...event, timestamp });
+    };
 
-        const timestamp = {
-          seconds: Math.floor(Date.now() / 1000),
-          nanos: (Date.now() % 1000) * 1000000,
-        };
+    call.on('data', (cmd: any) => {
+      this.logger.log(`📥 Session command: ${JSON.stringify(cmd)}`);
+      sessionId = cmd.sessionId || sessionId;
 
-        const commandType = typeof cmd.command_type === 'string' 
-          ? cmd.command_type 
-          : String(cmd.command_type);
+      const rawType = cmd.command_type ?? cmd.commandType;
+      const commandType =
+        typeof rawType === 'number'
+          ? [
+            'CMD_UNSPECIFIED',
+            'CMD_START_SESSION',
+            'CMD_UPDATE_QUANTITY',
+            'CMD_APPLY_COUPON',
+            'CMD_CONFIRM_PAYMENT',
+            'CMD_CANCEL_ORDER',
+          ][rawType] ?? 'CMD_UNSPECIFIED'
+          : String(rawType ?? 'CMD_UNSPECIFIED');
 
-        switch (commandType) {
-          case 'CMD_START_SESSION':
-          case '1':
-            subject.next({
-              session_id: sessionId,
-              event_type: 'EVENT_SESSION_STARTED',
-              message: `Bidirectional order processing session ${sessionId} initialized`,
-              current_total: currentTotal,
-              discount_applied: discountApplied,
-              timestamp,
-            });
-            break;
+      switch (commandType) {
+        case 'CMD_START_SESSION':
+          emit({
+            sessionId,
+            eventType: 'EVENT_SESSION_STARTED',
+            message: `Session ${sessionId} initialized`,
+            currentTotal,
+            discountApplied,
+          });
+          break;
 
-          case 'CMD_UPDATE_QUANTITY':
-          case '2':
-            const qty = cmd.new_quantity || 1;
-            currentTotal = qty * 25.0 - discountApplied;
-            subject.next({
-              session_id: sessionId,
-              event_type: 'EVENT_ORDER_UPDATED',
-              message: `Item quantity updated to ${qty}`,
-              current_total: currentTotal,
-              discount_applied: discountApplied,
-              timestamp,
-            });
-            subject.next({
-              session_id: sessionId,
-              event_type: 'EVENT_PRICE_RECALCULATED',
-              message: `Recalculated order total: $${currentTotal.toFixed(2)}`,
-              current_total: currentTotal,
-              discount_applied: discountApplied,
-              timestamp,
-            });
-            break;
-
-          case 'CMD_APPLY_COUPON':
-          case '3':
-            if (cmd.coupon_code === 'SAVE20') {
-              discountApplied = currentTotal * 0.2;
-              currentTotal -= discountApplied;
-              subject.next({
-                session_id: sessionId,
-                event_type: 'EVENT_PRICE_RECALCULATED',
-                message: `Coupon ${cmd.coupon_code} applied! 20% discount applied`,
-                current_total: currentTotal,
-                discount_applied: discountApplied,
-                timestamp,
-              });
-            } else {
-              subject.next({
-                session_id: sessionId,
-                event_type: 'EVENT_VALIDATION_FAILED',
-                message: `Invalid coupon code: ${cmd.coupon_code}`,
-                current_total: currentTotal,
-                discount_applied: discountApplied,
-                timestamp,
-              });
-            }
-            break;
-
-          case 'CMD_CONFIRM_PAYMENT':
-          case '4':
-            subject.next({
-              session_id: sessionId,
-              event_type: 'EVENT_PAYMENT_STATUS_CHANGED',
-              message: 'Payment status changed to PROCESSING',
-              current_total: currentTotal,
-              discount_applied: discountApplied,
-              timestamp,
-            });
-            subject.next({
-              session_id: sessionId,
-              event_type: 'EVENT_ORDER_CONFIRMED',
-              message: `Order successfully confirmed in session ${sessionId}!`,
-              current_total: currentTotal,
-              discount_applied: discountApplied,
-              timestamp,
-            });
-            break;
-
-          case 'CMD_CANCEL_ORDER':
-          case '5':
-            subject.next({
-              session_id: sessionId,
-              event_type: 'EVENT_ORDER_CANCELLED',
-              message: `Order cancelled by client in session ${sessionId}`,
-              current_total: 0.0,
-              discount_applied: 0.0,
-              timestamp,
-            });
-            subject.complete();
-            break;
-
-          default:
-            subject.next({
-              session_id: sessionId,
-              event_type: 'EVENT_VALIDATION_FAILED',
-              message: `Unrecognized command type: ${cmd.command_type}`,
-              current_total: currentTotal,
-              discount_applied: discountApplied,
-              timestamp,
-            });
-            break;
+        case 'CMD_UPDATE_QUANTITY': {
+          const qty = cmd.new_quantity ?? cmd.newQuantity ?? 1;
+          currentTotal = qty * 25.0 - discountApplied;
+          emit({
+            sessionId,
+            eventType: 'EVENT_ORDER_UPDATED',
+            message: `Item quantity updated to ${qty}`,
+            currentTotal,
+            discountApplied,
+          });
+          emit({
+            sessionId,
+            eventType: 'EVENT_PRICE_RECALCULATED',
+            message: `Recalculated order total: $${currentTotal.toFixed(2)}`,
+            currentTotal,
+            discountApplied,
+          });
+          break;
         }
-      },
-      error: (err) => {
-        this.logger.error(`Bidirectional session error: ${err.message}`, err.stack);
-        subject.error(err);
-      },
-      complete: () => {
-        this.logger.log(`Bidirectional session ${sessionId} closed by client`);
-        subject.complete();
-      },
+
+        case 'CMD_APPLY_COUPON': {
+          const coupon = cmd.coupon_code ?? cmd.couponCode;
+          if (coupon === 'SAVE20') {
+            discountApplied = currentTotal * 0.2;
+            currentTotal -= discountApplied;
+            emit({
+              sessionId,
+              eventType: 'EVENT_PRICE_RECALCULATED',
+              message: `Coupon ${coupon} applied! 20% discount`,
+              currentTotal,
+              discountApplied,
+            });
+          } else {
+            emit({
+              sessionId,
+              eventType: 'EVENT_VALIDATION_FAILED',
+              message: `Invalid coupon code: ${coupon}`,
+              currentTotal,
+              discountApplied,
+            });
+          }
+          break;
+        }
+
+        case 'CMD_CONFIRM_PAYMENT':
+          emit({
+            sessionId,
+            eventType: 'EVENT_PAYMENT_STATUS_CHANGED',
+            message: 'Payment status changed to PROCESSING',
+            currentTotal,
+            discountApplied,
+          });
+          emit({
+            sessionId,
+            eventType: 'EVENT_ORDER_CONFIRMED',
+            message: `Order confirmed in session ${sessionId}!`,
+            currentTotal,
+            discountApplied,
+          });
+          break;
+
+        case 'CMD_CANCEL_ORDER':
+          emit({
+            sessionId,
+            eventType: 'EVENT_ORDER_CANCELLED',
+            message: `Order cancelled in session ${sessionId}`,
+            currentTotal: 0,
+            discountApplied: 0,
+          });
+          call.end();
+          break;
+
+        default:
+          emit({
+            sessionId,
+            eventType: 'EVENT_VALIDATION_FAILED',
+            message: `Unrecognized command: ${rawType}`,
+            currentTotal,
+            discountApplied,
+          });
+      }
     });
 
-    return subject.asObservable();
+    call.on('end', () => {
+      this.logger.log(`Session ${sessionId} closed by client`);
+    });
+
+    call.on('error', (err: any) => {
+      this.logger.error(`Session error: ${err.message}`, err.stack);
+    });
   }
 }

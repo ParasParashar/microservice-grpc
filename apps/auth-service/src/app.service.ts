@@ -120,7 +120,7 @@ export class AuthService {
 
       return {
         user: {
-          id: payload.sub,
+          userId: payload.sub,
           email: payload.email,
         },
       };

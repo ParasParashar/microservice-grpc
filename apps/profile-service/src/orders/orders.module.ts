@@ -27,4 +27,4 @@ import { OrderGrpcClient } from '../client/order.client';
   providers: [OrderGrpcClient],
   exports: [OrderGrpcClient],
 })
-export class OrdersModule {}
+export class OrdersModule { }

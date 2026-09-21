@@ -19,13 +19,13 @@ service OrderService {
 // Client Streaming Messages (CreateOrderStream)
 // -------------------------------------------------------------
 message CreateOrderChunkRequest {
-  string idempotency_key = 1;
+  string idempotencyKey = 1;
   
   oneof chunk {
-    OrderMetadataChunk metadata_chunk = 2;
-    CustomerInfoChunk customer_chunk = 3;
-    OrderItemChunk item_chunk = 4;
-    PaymentInfoChunk payment_chunk = 5;
+    OrderMetadataChunk metadataChunk = 2;
+    CustomerInfoChunk customerChunk = 3;
+    OrderItemChunk itemChunk = 4;
+    PaymentInfoChunk paymentChunk = 5;
   }
 }
 
@@ -36,38 +36,38 @@ message OrderMetadataChunk {
 }
 
 message CustomerInfoChunk {
-  string customer_id = 1;
-  string shipping_address = 2;
-  string billing_address = 3;
+  string customerId = 1;
+  string shippingAddress = 2;
+  string billingAddress = 3;
 }
 
 message OrderItemChunk {
-  string product_id = 1;
+  string productId = 1;
   string sku = 2;
   int32 quantity = 3;
-  double unit_price = 4;
+  double unitPrice = 4;
 }
 
 message PaymentInfoChunk {
-  string payment_method = 1;
-  string transaction_token = 2;
+  string paymentMethod = 1;
+  string transactionToken = 2;
   double amount = 3;
 }
 
 message CreateOrderResponse {
-  string order_id = 1;
+  string orderId = 1;
   string status = 2;
-  double total_amount = 3;
-  int32 total_items = 4;
-  google.protobuf.Timestamp created_at = 5;
-  string idempotency_key = 6;
+  double totalAmount = 3;
+  int32 totalItems = 4;
+  google.protobuf.Timestamp createdAt = 5;
+  string idempotencyKey = 6;
 }
 
 // -------------------------------------------------------------
 // Server Streaming Messages (GetOrderEventsStream)
 // -------------------------------------------------------------
 message GetOrderEventsRequest {
-  string order_id = 1;
+  string orderId = 1;
   bool include_historical = 2;
 }
 
@@ -84,8 +84,8 @@ enum OrderEventType {
 }
 
 message OrderEventResponse {
-  string event_id = 1;
-  string order_id = 2;
+  string eventId = 1;
+  string orderId = 2;
   OrderEventType event_type = 3;
   string description = 4;
   google.protobuf.Timestamp timestamp = 5;
@@ -105,7 +105,7 @@ enum SessionCommandType {
 }
 
 message OrderSessionCommand {
-  string session_id = 1;
+  string sessionId = 1;
   SessionCommandType command_type = 2;
   string item_id = 3;
   int32 new_quantity = 4;
@@ -125,7 +125,7 @@ enum SessionEventType {
 }
 
 message OrderSessionEvent {
-  string session_id = 1;
+  string sessionId = 1;
   SessionEventType event_type = 2;
   string message = 3;
   double current_total = 4;

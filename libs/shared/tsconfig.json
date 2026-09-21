@@ -14,7 +14,8 @@
         "skipLibCheck": true,
         "types": [
             "node"
-        ]
+        ],
+        "ignoreDeprecations": "6.0"
     },
     "include": [
         "src/**/*.ts"
