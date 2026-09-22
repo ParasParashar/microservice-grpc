@@ -115,8 +115,6 @@ export class OrderController {
   @GrpcStreamCall('OrderService', 'OrderProcessingSession')
   orderProcessingSession(call: ServerDuplexStream<any, any>): void {
     this.logger.log('🔄 OrderProcessingSession bidirectional stream started');
-
-    // Delegate to service; service writes back via call.write()
     this.orderService.handleBidirectionalSessionRaw(call);
   }
 
